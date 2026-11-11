@@ -3,6 +3,7 @@ from PIL import Image
 import numpy as np
 import math
 debug = True
+superdebug = False
 n = 32
 print("What image folder within the same directory would you like to scan?")
 foldername = input()
@@ -11,7 +12,7 @@ rawimages = []
 #Here the initial extraction of the image data happens before we begin the grouping, shortening to greyscale to deal with image shape for now
 for filename in os.listdir(foldername):
     filepath = os.path.join(foldername, filename)
-    if debug:
+    if superdebug:
         print("scanning file " + str(filenum))
     try:
         #greyscale conversion, so we deal with shapes of objects rather than too much focus on the color details
@@ -31,6 +32,20 @@ for image in rawimages:
     data = np.array(image)
     pixeldata.append(data)
 
+#Precalculate cosines so they arent redone millions of times
+cosines = []
+u = 0
+while u < n:
+    row = []
+    x = 0
+    while x < n:
+        row.append(math.cos(math.pi*u*(2*x+1)/(2*n)))
+        x+=1
+    cosines.append(row)
+    u+=1
+
+
+    
 
 #The phash algorithm uses a discrete cosine transform, the following are pieces that form it.
 #This is ultimately done to measure the shape of things rather than raw pixel data, such that minor compression or brightness changes dont count as
@@ -42,9 +57,23 @@ def normal(k):
     else:
         return 1
 
+
+#Precompute the normals as well
+#This part is the same for every single X,Y, so it's better to pre calculate it rather than do so hundreds of times later.
+#part1 = 2/n * normal(u) * normal(v)
+part1s = [[0 for thing in range(n)] for thing in range(n)]
+u = 0
+v = 0
+while u < n:
+    v=0
+    while v < n:    
+        part1s[u][v] = 2/n * normal(u) * normal(v)
+        v+=1
+        
+    u+=1
 def coefficient(u,v,imagematrix,n=32):
-    #This part is the same for every single X,Y, so it's better to pre calculate it rather than do so hundreds of times later.
-    part1 = 2/n * normal(u) * normal(v)
+
+    
     
     x = 0
     y = 0
@@ -53,22 +82,17 @@ def coefficient(u,v,imagematrix,n=32):
         #Calculating once per x value to not repeat it multiple times, since this needs to be executed millions of times on a large folder
         xval = 0
 
-        xval = math.pi*u*((2*x)+1)
-        xval = xval / (2*n)
-        xval = math.cos(xval)
+        xval = cosines[u][x]
         
         
         while y < n:
-            yval = 0
-            yval = math.pi*v*((2*y)+1)
-            yval = yval / (2*n)
-            yval = math.cos(yval)
+            yval=cosines[v][y]
             total+=xval*yval*imagematrix[x][y]
 
             y+= 1
         x += 1
         y = 0
-    return total*part1
+    return total*part1s[u][v]
 
 
 if debug:
@@ -76,22 +100,26 @@ if debug:
     print(coefficient(0,0,pixeldata[0]))
     print(np.mean(pixeldata[0]) * n)
 
+
 #In case editing pixeldata directly corrupts something later
-frequencydata = pixeldata.copy()
+frequencydata = [image.copy() for image in pixeldata]
 k = 0
 i = 0
 j = 0
 while k < len(pixeldata):
+    i = 0
+    j = 0
     if debug:
         print("k =" + str(k))
     while i < n:
-        if debug:
+        if superdebug:
             print("I =" + str(i))
         while j < n:
-            if debug:
+            if superdebug:
                 print("J = " + str(j))
             frequencydata[k][i][j] = coefficient(i,j,pixeldata[k])
             j+=1
+        j = 0
         i+=1
     k+=1
 
