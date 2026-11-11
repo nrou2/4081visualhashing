@@ -4,7 +4,8 @@ import numpy as np
 import math
 debug = False
 superdebug = False
-n = 16
+calculatefullimage = False
+n =16
 print("What image folder within the same directory would you like to scan?")
 foldername = input()
 filenum = 0
@@ -14,8 +15,7 @@ print("Scanning images....")
 #Here the initial extraction of the image data happens before we begin the grouping, shortening to greyscale to deal with image shape for now
 for filename in os.listdir(foldername):
     filepath = os.path.join(foldername, filename)
-    if superdebug:
-        print("scanning file " + str(filenum))
+    print("Scanning image #" + str(filenum), end="\r")
     try:
         #greyscale conversion, so we deal with shapes of objects rather than too much focus on the color details
         image = Image.open(filepath).convert("L")
@@ -24,8 +24,7 @@ for filename in os.listdir(foldername):
         rawimages.append(image)
     except:
         continue
-    if debug:
-        filenum+=1
+    filenum+=1
 print("Preprocessing reused variables....")
 #Now to convert them to pixel arrays so they can be easily worked with
 
@@ -104,7 +103,7 @@ if debug:
     print(np.mean(pixeldata[0]) * n)
 
 
-#In case editing pixeldata directly corrupts something later
+#So that editing pixeldata directly  doesn't corrupt something later
 frequencydata = [image.copy() for image in pixeldata]
 k = 0
 i = 0
@@ -112,24 +111,55 @@ j = 0
 half = False
 halfway = len(pixeldata) / 2
 print("Calculating frequencies of each image....")
-while k < len(pixeldata):
-    i = 0
-    j = 0
-    if not half and k > halfway:
-        print("Halfway through processing image frequency...")
-        half = True
-    if debug:
-        print("k =" + str(k))
-    while i < n:
-        if superdebug:
-            print("I =" + str(i))
-        while j < n:
-            if superdebug:
-                print("J = " + str(j))
-            frequencydata[k][i][j] = coefficient(i,j,pixeldata[k],n)
-            j+=1
+#Here we use an 8x8 sector of the image frequencies despite calculating them for 16x16, such that what we use is calculated with more input info to work with
+#And we get to use a computationally reasonably small amount of it as well, making a nice compromise
+if calculatefullimage:
+    
+    while k < len(pixeldata):
+        i = 0
         j = 0
-        i+=1
-    k+=1
+        if not half and k > halfway:
+            print("Halfway through processing image frequency...")
+            half = True
+        if debug:
+            print("k =" + str(k))
+        while i < n:
+            if superdebug:
+                print("I =" + str(i))
+            while j < n:
+                if superdebug:
+                    print("J = " + str(j))
+                frequencydata[k][i][j] = coefficient(i,j,pixeldata[k],n)
+                j+=1
+            j = 0
+            i+=1
+        k+=1
+else:
+    while k < len(pixeldata):
+        i = 0
+        j = 0
+        print("k = " + str(k), end="\r")
+        if not half and k > halfway:
+            print("Halfway through processing image frequency...")
+            half = True
+        if debug:
+            print("k =" + str(k))
+        while i < 8:
+            if superdebug:
+                print("I =" + str(i))
+            while j < 8:
+                if superdebug:
+                    print("J = " + str(j))
+                frequencydata[k][i][j] = coefficient(i,j,pixeldata[k],n)
+                j+=1
+            j = 0
+            i+=1
+        k+=1
 
 print("done")
+
+smalls = []
+for image in frequencydata:
+   smalls.append(image[:8, :8])
+
+
