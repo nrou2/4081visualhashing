@@ -2,13 +2,15 @@ import os
 from PIL import Image
 import numpy as np
 import math
-debug = True
+debug = False
 superdebug = False
-n = 32
+n = 16
 print("What image folder within the same directory would you like to scan?")
 foldername = input()
 filenum = 0
 rawimages = []
+print("Scanning images....")
+      
 #Here the initial extraction of the image data happens before we begin the grouping, shortening to greyscale to deal with image shape for now
 for filename in os.listdir(foldername):
     filepath = os.path.join(foldername, filename)
@@ -24,12 +26,13 @@ for filename in os.listdir(foldername):
         continue
     if debug:
         filenum+=1
+print("Preprocessing reused variables....")
 #Now to convert them to pixel arrays so they can be easily worked with
 
 pixeldata = []
 
 for image in rawimages:
-    data = np.array(image)
+    data = np.array(image, dtype=np.float64)
     pixeldata.append(data)
 
 #Precalculate cosines so they arent redone millions of times
@@ -97,7 +100,7 @@ def coefficient(u,v,imagematrix,n=32):
 
 if debug:
     #Making sure things mathematically make sense and I didn't botch the formula, seems to match on the first image I tested
-    print(coefficient(0,0,pixeldata[0]))
+    print(coefficient(0,0,pixeldata[0],n))
     print(np.mean(pixeldata[0]) * n)
 
 
@@ -106,9 +109,15 @@ frequencydata = [image.copy() for image in pixeldata]
 k = 0
 i = 0
 j = 0
+half = False
+halfway = len(pixeldata) / 2
+print("Calculating frequencies of each image....")
 while k < len(pixeldata):
     i = 0
     j = 0
+    if not half and k > halfway:
+        print("Halfway through processing image frequency...")
+        half = True
     if debug:
         print("k =" + str(k))
     while i < n:
@@ -117,7 +126,7 @@ while k < len(pixeldata):
         while j < n:
             if superdebug:
                 print("J = " + str(j))
-            frequencydata[k][i][j] = coefficient(i,j,pixeldata[k])
+            frequencydata[k][i][j] = coefficient(i,j,pixeldata[k],n)
             j+=1
         j = 0
         i+=1
