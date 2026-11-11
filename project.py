@@ -2,23 +2,27 @@ import os
 from PIL import Image
 import numpy as np
 import math
-
+debug = True
+n = 32
 print("What image folder within the same directory would you like to scan?")
 foldername = input()
-
+filenum = 0
 rawimages = []
 #Here the initial extraction of the image data happens before we begin the grouping, shortening to greyscale to deal with image shape for now
 for filename in os.listdir(foldername):
     filepath = os.path.join(foldername, filename)
-
-    try:#greyscale conversion
+    if debug:
+        print("scanning file " + str(filenum))
+    try:
+        #greyscale conversion, so we deal with shapes of objects rather than too much focus on the color details
         image = Image.open(filepath).convert("L")
         #resize to a standardized grid, even if the image is long
-        image = image.resize((32, 32), Image.Resampling.LANCZOS)
+        image = image.resize((n, n), Image.Resampling.LANCZOS)
         rawimages.append(image)
     except:
         continue
-
+    if debug:
+        filenum+=1
 #Now to convert them to pixel arrays so they can be easily worked with
 
 pixeldata = []
@@ -46,17 +50,18 @@ def coefficient(u,v,imagematrix,n=32):
     y = 0
     total = 0
     while x < n:
+        #Calculating once per x value to not repeat it multiple times, since this needs to be executed millions of times on a large folder
         xval = 0
 
         xval = math.pi*u*((2*x)+1)
-        xval = xval / 2*n
+        xval = xval / (2*n)
         xval = math.cos(xval)
         
         
         while y < n:
             yval = 0
             yval = math.pi*v*((2*y)+1)
-            yval = yval / 2*n
+            yval = yval / (2*n)
             yval = math.cos(yval)
             total+=xval*yval*imagematrix[x][y]
 
@@ -66,5 +71,28 @@ def coefficient(u,v,imagematrix,n=32):
     return total*part1
 
 
-coefficient(0,0,pixeldata[0])
+if debug:
+    #Making sure things mathematically make sense and I didn't botch the formula, seems to match on the first image I tested
+    print(coefficient(0,0,pixeldata[0]))
+    print(np.mean(pixeldata[0]) * n)
 
+#In case editing pixeldata directly corrupts something later
+frequencydata = pixeldata.copy()
+k = 0
+i = 0
+j = 0
+while k < len(pixeldata):
+    if debug:
+        print("k =" + str(k))
+    while i < n:
+        if debug:
+            print("I =" + str(i))
+        while j < n:
+            if debug:
+                print("J = " + str(j))
+            frequencydata[k][i][j] = coefficient(i,j,pixeldata[k])
+            j+=1
+        i+=1
+    k+=1
+
+print("done")
